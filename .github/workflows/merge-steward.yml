@@ -27,8 +27,8 @@ jobs:
     steps:
       # pull_request_target checks out the trusted base branch. Never check out or
       # execute code from the pull request in this privileged workflow.
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
       - name: Review pull request
