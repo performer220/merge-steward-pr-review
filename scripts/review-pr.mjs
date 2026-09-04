@@ -175,12 +175,8 @@ async function askGemini({ pr, files, diff, diffTruncated }) {
         generationConfig: {
           maxOutputTokens: 8192,
           thinkingConfig: { thinkingLevel: "low" },
-          responseFormat: {
-            text: {
-              mimeType: "application/json",
-              schema: assessmentSchema(),
-            },
-          },
+          responseMimeType: "application/json",
+          responseJsonSchema: assessmentSchema(),
         },
       }),
     },
