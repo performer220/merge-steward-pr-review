@@ -13,7 +13,10 @@ const response = await fetch(
     },
     body: JSON.stringify({
       contents: [{ parts: [{ text: "Reply with exactly: OK" }] }],
-      generationConfig: { maxOutputTokens: 10 },
+      generationConfig: {
+        maxOutputTokens: 128,
+        thinkingConfig: { thinkingLevel: "minimal" },
+      },
     }),
   },
 );
