@@ -1,31 +1,15 @@
 {
-  "name": "pr-review-bot",
-  "version": "0.0.0",
+  "name": "merge-steward-pr-review",
+  "version": "1.0.0",
+  "description": "A low-cost automated pull-request risk reviewer for GitHub Actions",
   "type": "module",
-  "imports": {
-    "#*": "./agent/*",
-    "#evals/*": "./evals/*"
-  },
   "scripts": {
-    "build": "eve build",
-    "dev": "eve dev",
-    "start": "eve start",
-    "typecheck": "tsc"
+    "review": "node scripts/review-pr.mjs",
+    "test:gemini": "node scripts/smoke-gemini.mjs",
+    "test": "node --test"
   },
-  "dependencies": {
-    "@github-tools/eve-extension": "^0.3.2",
-    "@vercel/connect": "^0.8.0",
-    "ai": "^7.0.58",
-    "eve": "^0.39.2",
-    "zod": "4.4.3"
-  },
-  "devDependencies": {
-    "@types/node": "24.x",
-    "typescript": "7.0.2"
-  },
-  "overrides": {
-    "ai": "^7.0.58"
-  },
+  "dependencies": {},
+  "devDependencies": {},
   "engines": {
     "node": "24.x"
   }

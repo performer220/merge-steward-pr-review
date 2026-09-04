@@ -1,133 +1,108 @@
 # Operations and recovery
 
-This document records the configuration that is not fully represented by the
-source tree. Keep it current when the Vercel project, GitHub App, connector,
-model, permissions, or event subscriptions change.
-
 ## Architecture
 
-GitHub sends subscribed events to Vercel Connect, which invokes the Eve GitHub
-channel at `/eve/v1/github`. The agent reads the PR and CI state through the
-GitHub extension, calls the deterministic risk scorer, and submits either an
-approval or a PR-level comment. It never merges.
+GitHub Actions runs Merge Steward on `pull_request_target`, using only code from
+the trusted base branch. The script reads PR metadata, the diff, and check runs
+through GitHub's REST API. It sends the review context directly to the Gemini
+Developer API, validates the structured response, applies the deterministic
+risk policy, and submits an APPROVE or COMMENT review with the temporary
+`GITHUB_TOKEN`.
 
-Production identifiers:
+There is no Vercel deployment, webhook service, long-lived GitHub credential,
+database, or package dependency.
 
-- Vercel team: `kevin-f09c`
-- Vercel project: `merge-steward-pr-review`
-- Production URL: <https://merge-steward-pr-review.vercel.app>
-- Connector UID: `github/pr-review-bot`
-- Connector trigger path: `/eve/v1/github`
-- GitHub App: `merge-steward-performer220-github`
-- Agent model: `zai/glm-5.2`
+The root `action.yml` makes the reviewer reusable across repositories. Publish a
+version tag, add the small caller workflow from the README to each target
+repository, and store `GEMINI_API_KEY` in each repository or organization.
 
-## External GitHub App configuration
+## Cost
 
-The GitHub App is installed for the repositories the bot reviews. Its repository
-permissions are:
+The default model is the stable `gemini-2.5-flash`. Google currently offers
+a free Gemini Developer API tier and token-based paid usage. Check Google's live
+pricing before enabling paid billing. GitHub-hosted Actions runners are free for
+public repositories; private repositories use the minutes included with the
+GitHub account and then usage-based billing.
 
-- Actions: read
-- Checks: read
+At the current paid rates, Flash costs $0.30 per million input tokens and $2.50
+per million output tokens. A review with 45,000 input tokens and 2,000 output
+tokens is about $0.019. `gemini-2.5-flash-lite` lowers that example to about
+$0.005 but is less capable for subtle code review.
+
+ChatGPT Plus and Claude paid plans do not include API calls for external
+applications. They cannot fund this workflow directly.
+
+For private source code, use Gemini's paid tier. Google states that free-tier
+content may be used to improve its products and paid-tier content is not.
+
+## GitHub configuration
+
+The workflow needs these repository permissions:
+
 - Contents: read
-- Issues: write
+- Checks: read
 - Pull requests: write
-- Commit statuses: read
 
-Subscribed events:
+Add `GEMINI_API_KEY` under **Settings → Secrets and variables → Actions**.
+`SLACK_WEBHOOK_URL` is optional. In **Settings → Actions → General**, ensure the
+repository allows GitHub Actions to create and approve pull requests. Branch
+protection should require the Merge Steward job if it is intended to be a gate.
 
-- Pull request
-- Issue comment
-- Pull request review comment
-- Check suite
+The workflow waits up to 600 seconds for other check runs. Change
+`WAIT_FOR_CHECKS_SECONDS` in the workflow if normal CI is slower. A timed-out
+review leaves a comment and can be retried from **Actions → Merge Steward → Run
+workflow** with the PR number.
 
-The application code currently dispatches only newly opened PRs and successful,
-completed GitHub Actions check suites associated with at least one PR. Rerunning
-a PR's successful CI workflow is the cleanest manual retrigger.
+## Security properties
 
-## Secrets
+`pull_request_target` has a write token and access to secrets, so the workflow
+must never check out, import, source, or execute files from the PR head. The
+checked-in workflow uses the base branch and sends the PR diff only as untrusted
+model input. Keep action dependencies pinned to trusted publishers.
 
-Never commit `.env.local`, a GitHub PAT, a GitHub App private key, or a webhook
-URL. `.gitignore` excludes all `.env*` files except the placeholder
-`.env.example`.
+Automatic approval is disabled when:
 
-Production GitHub authentication is supplied by Vercel Connect. A fine-grained
-PAT is needed only for local diagnostics. `SLACK_WEBHOOK_URL` is optional; when
-unset, escalation is skipped safely.
+- a concrete blocking finding exists;
+- any risk dimension is 2 or 3;
+- the total risk score exceeds 4;
+- the diff is incomplete or exceeds `MAX_DIFF_CHARS`; or
+- the PR originates from a fork.
 
-## Validate locally
+The script does not merge pull requests.
 
-Use Node.js 24.
+## Validate
 
-```sh
-npm ci
-npm run typecheck
-npm run build
-```
-
-`eve dev` may hit the macOS file-watch limit (`EMFILE`) on machines with a low
-open-file limit. A successful production build is the authoritative packaging
-check.
-
-## Deploy
-
-Authenticate to Vercel, link the checkout to the existing project, then deploy:
+Node.js 24 is required. No install step is needed.
 
 ```sh
-npx eve link --non-interactive --project merge-steward-pr-review --team kevin-f09c
-npx eve deploy --non-interactive --yes --project merge-steward-pr-review
+npm test
 ```
 
-If Eve reports a continuation command during link or connector setup, run the
-reported command rather than starting a second connector.
-
-After deployment, confirm the production URL responds and open a harmless test
-PR. Wait for CI to complete and verify that
-`merge-steward-performer220[bot]` leaves a PR review.
-
-## Rebuild from scratch
-
-1. Clone this repository and run the local validation commands above.
-2. Create or select the Vercel project `merge-steward-pr-review`.
-3. Create a Vercel Connect GitHub connector with UID
-   `github/pr-review-bot` and trigger path `/eve/v1/github`.
-4. Create or connect the GitHub App, grant the listed permissions, subscribe to
-   the listed events, and install it for the target repositories.
-5. Link the checkout to Vercel and deploy.
-6. Open a harmless PR or rerun CI on an existing PR to verify the full path.
+For an end-to-end test, add the API key, open a harmless PR, and inspect the
+Merge Steward job and resulting review. Test medium-risk behavior with a PR that
+changes authentication, migrations, or deployment configuration.
 
 ## Troubleshooting
 
-### No bot review appears
+### Gemini rejects the request
 
-1. Allow a couple of minutes after CI completes; reviews are asynchronous.
-2. Confirm the PR is not a draft and its GitHub Actions workflow completed
-   successfully.
-3. Check whether the bot left an error comment on the PR.
-4. Check the Vercel deployment logs for `/eve/v1/github` invocations.
-5. Confirm the GitHub App is installed for the repository and the connector is
-   attached to the production Vercel project.
-6. Rerun all jobs for the PR's CI workflow to produce a new successful check
-   suite event.
+Confirm `GEMINI_API_KEY` exists in Actions secrets and the API project has access
+to `gemini-2.5-flash`. Free-tier rate limits can temporarily reject bursts;
+retry the workflow or enable usage-based billing with a budget.
 
-Closing and reopening a PR is not a reliable retry because the handler accepts
-the `opened` action, not `reopened`.
+### Review cannot be submitted
 
-### `GatewayInternalServerError: Service temporarily unavailable`
+Confirm the workflow has `pull-requests: write` and the repository setting that
+allows Actions to approve pull requests. Organization policy can override the
+repository setting.
 
-This is an upstream model or AI Gateway availability error. The agent retries
-three times automatically. Wait briefly, then rerun the PR's CI workflow. If it
-persists, inspect Vercel logs and the configured model's availability before
-changing application code.
+### Review waits for itself
 
-### Duplicate bot messages
+The job excludes the check named by `SELF_CHECK_NAME`, which defaults to
+`review`. Update that variable if the job name changes.
 
-The bot can run once when a PR opens and again when its check suite succeeds.
-Eve may also add a conversational summary after the formal GitHub review. This
-is expected with the current event configuration.
+### Remove the old deployment
 
-### CI passed but the Checks API is unavailable locally
-
-A fine-grained diagnostic PAT may be able to read Actions runs while GitHub
-still denies the Checks API. Production uses the GitHub App, which has Checks
-read permission. Use the Actions run as the local diagnostic signal and verify
-the App permission in GitHub if production cannot read checks.
+After this workflow succeeds on a test PR, disable the old GitHub App webhook
+and delete the Vercel project or leave it undeployed. Remove the old Vercel
+Connect GitHub App installation if no other project uses it.

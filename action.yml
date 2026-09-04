@@ -1,0 +1,29 @@
+name: Merge Steward PR Review
+description: Review a pull request with Gemini and apply a deterministic risk gate
+inputs:
+  pr_number:
+    description: Pull request number to review
+    required: true
+  model:
+    description: Gemini model identifier
+    required: false
+    default: gemini-2.5-flash
+  wait_for_checks_seconds:
+    description: Maximum time to wait for other checks
+    required: false
+    default: "600"
+  max_diff_chars:
+    description: Maximum number of diff characters sent to Gemini
+    required: false
+    default: "180000"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: node "$GITHUB_ACTION_PATH/scripts/review-pr.mjs"
+      env:
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GEMINI_MODEL: ${{ inputs.model }}
+        WAIT_FOR_CHECKS_SECONDS: ${{ inputs.wait_for_checks_seconds }}
+        MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
+        SELF_CHECK_NAME: review
