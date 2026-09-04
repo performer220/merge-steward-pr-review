@@ -174,6 +174,7 @@ async function askGemini({ pr, files, diff, diffTruncated }) {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           maxOutputTokens: 8192,
+          thinkingConfig: { thinkingLevel: "low" },
           responseFormat: {
             text: {
               mimeType: "application/json",
