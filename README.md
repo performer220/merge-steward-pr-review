@@ -1,11 +1,9 @@
 # Merge Steward
 
-An Eve-based PR review agent inspired by Claire Vo's “Build an AI code review
-bot in 30 minutes with Vercel Eve” episode.
-
-It reads a pull request and CI results, reviews the code, scores six risk
-dimensions, approves only deterministic low-risk changes, and sends medium/high
-risk changes to Slack. It never merges.
+A dependency-free GitHub Action that reviews pull requests with the Gemini
+Developer API. It reads the PR diff and CI results, scores six risk dimensions,
+approves only deterministic low-risk changes, and optionally sends medium/high
+risk changes to Slack. It never merges or executes pull-request code.
 
 ## Risk policy
 
@@ -19,37 +17,67 @@ operational impact, verification gap, and change surface.
 Passing CI is necessary but not sufficient. Any actionable defect prevents
 approval regardless of the numeric score.
 
-## Run locally
+## Setup
 
-Requirements: Node.js 24 and a GitHub fine-grained personal access token with
-read access to repository contents, metadata, pull requests, and checks, plus
-pull-request review write access.
+1. Create a Gemini API key in Google AI Studio. The free tier works for small
+   public projects. Use paid API billing for private code because Google may use
+   free-tier content to improve its products.
+2. Add the key to the repository as an Actions secret named `GEMINI_API_KEY`.
+3. Enable GitHub Actions and allow workflows to create pull-request reviews.
+4. Push `.github/workflows/merge-steward.yml` to the default branch.
+5. Optionally add `SLACK_WEBHOOK_URL` as an Actions secret.
 
-1. Copy `.env.example` to `.env.local` and add `GITHUB_TOKEN`.
-2. Optionally create a Slack incoming webhook and set `SLACK_WEBHOOK_URL`.
-3. Run `npm install`.
-4. Run `npm run dev` and ask the agent to review a PR URL.
+The workflow runs from the trusted base branch with `pull_request_target`. It
+never checks out or executes the proposed change. It waits up to ten minutes for
+other check runs, then reviews the diff. Use **Run workflow** to retry a PR by
+number if its CI takes longer.
 
-The HTTP channel is included by Eve. Production uses the official Eve GitHub
-channel and Vercel Connect so GitHub credentials are short-lived. The channel
-reviews newly opened pull requests and retries after a successful GitHub Actions
-check suite completes. Existing PRs can be retriggered by rerunning their CI
-workflow.
+The default model is `gemini-2.5-flash`, currently priced at $0.30 per million
+input tokens and $2.50 per million output tokens on the paid tier. Set
+`GEMINI_MODEL` to `gemini-2.5-flash-lite` for the lowest cost.
 
-## Production
+To use Merge Steward in another repository, publish a `v1` tag from this repo
+and add this workflow to the target repository:
 
-- Vercel project: `merge-steward-pr-review` in team `kevin-f09c`
-- Production URL: <https://merge-steward-pr-review.vercel.app>
-- Vercel Connect connector UID: `github/pr-review-bot`
-- GitHub webhook route: `/eve/v1/github`
-- GitHub App: `merge-steward-performer220-github`
+```yaml
+name: Merge Steward
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  checks: read
+  pull-requests: write
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: performer220/merge-steward-pr-review@v1
+        with:
+          pr_number: ${{ github.event.pull_request.number }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+```
 
-See [OPERATIONS.md](OPERATIONS.md) for deployment, recovery, external
-configuration, and troubleshooting.
+Pin the action to a full commit SHA when using it in a sensitive repository.
+
+For local use, export the variables shown in `.env.example`, then run
+`node scripts/review-pr.mjs`. No package installation is required.
+
+To verify the API key before reviewing a PR, open **Actions → Test Gemini API →
+Run workflow**. A successful run prints `Gemini API connection succeeded`
+without exposing the key.
+
+See [OPERATIONS.md](OPERATIONS.md) for cost, security, and recovery details.
 
 ## Safety notes
 
 Start with a sandbox repository and branch protection. Keep required checks and
-the rule preventing authors from approving their own PRs. Review the risk policy
-against your organization's controls before enabling automatic approvals. Eve
-and Vercel Connect are currently preview/beta software.
+the rule preventing authors from approving their own PRs. Automatic approval is
+disabled for forked PRs and whenever the diff is truncated.

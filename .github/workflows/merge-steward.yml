@@ -1,0 +1,43 @@
+name: Merge Steward
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: write
+
+concurrency:
+  group: merge-steward-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # pull_request_target checks out the trusted base branch. Never check out or
+      # execute code from the pull request in this privileged workflow.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Review pull request
+        uses: ./
+        with:
+          pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
+          model: gemini-2.5-flash
+          wait_for_checks_seconds: "600"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
