@@ -1,5 +1,5 @@
 const apiKey = process.env.GEMINI_API_KEY;
-const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
 
@@ -13,7 +13,7 @@ const response = await fetch(
     },
     body: JSON.stringify({
       contents: [{ parts: [{ text: "Reply with exactly: OK" }] }],
-      generationConfig: { temperature: 0, maxOutputTokens: 10 },
+      generationConfig: { maxOutputTokens: 10 },
     }),
   },
 );

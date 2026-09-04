@@ -35,7 +35,7 @@ jobs:
         uses: ./
         with:
           pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
-          model: gemini-2.5-flash
+          model: gemini-3.6-flash
           wait_for_checks_seconds: "600"
         env:
           GITHUB_TOKEN: ${{ github.token }}
