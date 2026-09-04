@@ -7,7 +7,7 @@ inputs:
   model:
     description: Gemini model identifier
     required: false
-    default: gemini-2.5-flash
+    default: gemini-3.6-flash
   wait_for_checks_seconds:
     description: Maximum time to wait for other checks
     required: false

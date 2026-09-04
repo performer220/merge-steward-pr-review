@@ -18,16 +18,18 @@ repository, and store `GEMINI_API_KEY` in each repository or organization.
 
 ## Cost
 
-The default model is the stable `gemini-2.5-flash`. Google currently offers
+The default model is the stable `gemini-3.6-flash`. Google currently offers
 a free Gemini Developer API tier and token-based paid usage. Check Google's live
 pricing before enabling paid billing. GitHub-hosted Actions runners are free for
 public repositories; private repositories use the minutes included with the
 GitHub account and then usage-based billing.
 
-At the current paid rates, Flash costs $0.30 per million input tokens and $2.50
-per million output tokens. A review with 45,000 input tokens and 2,000 output
-tokens is about $0.019. `gemini-2.5-flash-lite` lowers that example to about
-$0.005 but is less capable for subtle code review.
+Through December 31, 2026, Gemini 3.6 Flash has introductory pricing of $0.75
+per million input tokens and $3.75 per million output tokens. A review with
+45,000 input tokens and 2,000 output tokens is about $0.041. The published
+standard price beginning January 1, 2027 is $1.50 input and $7.50 output per
+million tokens. `gemini-3.5-flash-lite` is cheaper but less capable for subtle
+code review.
 
 ChatGPT Plus and Claude paid plans do not include API calls for external
 applications. They cannot fund this workflow directly.
@@ -87,7 +89,7 @@ changes authentication, migrations, or deployment configuration.
 ### Gemini rejects the request
 
 Confirm `GEMINI_API_KEY` exists in Actions secrets and the API project has access
-to `gemini-2.5-flash`. Free-tier rate limits can temporarily reject bursts;
+to `gemini-3.6-flash`. Free-tier rate limits can temporarily reject bursts;
 retry the workflow or enable usage-based billing with a budget.
 
 ### Review cannot be submitted
