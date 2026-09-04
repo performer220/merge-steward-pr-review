@@ -293,10 +293,23 @@ function formatReview({ assessment, risk, checks, autoApprove, diffTruncated, co
 }
 
 async function submitReview(event, body) {
-  await github(`/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`, {
-    method: "POST",
-    body: { event, body },
-  });
+  try {
+    await github(`/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`, {
+      method: "POST",
+      body: { event, body },
+    });
+  } catch (error) {
+    // GitHub does not allow the built-in github-actions identity to approve
+    // pull requests. Preserve the review findings as a comment instead.
+    if (event !== "APPROVE" || !String(error.message).includes("not permitted to approve")) throw error;
+    await github(`/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`, {
+      method: "POST",
+      body: {
+        event: "COMMENT",
+        body: `${body}\n\n> Automatic approval was unavailable because GitHub Actions cannot submit approving reviews.`,
+      },
+    });
+  }
 }
 
 async function postSlack({ pr, risk, summary }) {
