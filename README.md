@@ -32,9 +32,10 @@ never checks out or executes the proposed change. It waits up to ten minutes for
 other check runs, then reviews the diff. Use **Run workflow** to retry a PR by
 number if its CI takes longer.
 
-The default model is `gemini-2.5-flash`, currently priced at $0.30 per million
-input tokens and $2.50 per million output tokens on the paid tier. Set
-`GEMINI_MODEL` to `gemini-2.5-flash-lite` for the lowest cost.
+The default model is `gemini-3.6-flash`, which Google makes available to new API
+accounts. Its introductory paid-tier price through December 31, 2026 is $0.75
+per million input tokens and $3.75 per million output tokens. Set
+`GEMINI_MODEL` to `gemini-3.5-flash-lite` for lower-cost reviews.
 
 To use Merge Steward in another repository, publish a `v1` tag from this repo
 and add this workflow to the target repository:
@@ -54,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
       - uses: performer220/merge-steward-pr-review@v1

@@ -5,7 +5,7 @@ const githubToken = required("GITHUB_TOKEN");
 const apiKey = required("GEMINI_API_KEY");
 const repository = required("GITHUB_REPOSITORY");
 const pullNumber = Number(required("PR_NUMBER"));
-const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+const model = env.GEMINI_MODEL || "gemini-3.6-flash";
 const [owner, repo] = repository.split("/");
 
 if (!owner || !repo || !Number.isInteger(pullNumber) || pullNumber <= 0) {
@@ -173,8 +173,8 @@ async function askGemini({ pr, files, diff, diffTruncated }) {
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.1,
           maxOutputTokens: 8192,
+          thinkingConfig: { thinkingLevel: "low" },
           responseMimeType: "application/json",
           responseJsonSchema: assessmentSchema(),
         },
