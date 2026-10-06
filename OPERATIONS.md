@@ -41,7 +41,7 @@ content may be used to improve its products and paid-tier content is not.
 
 The workflow needs these repository permissions:
 
-- Contents: read
+- Contents: read (`write` when `auto_merge` is enabled)
 - Checks: read
 - Pull requests: write
 
@@ -70,7 +70,10 @@ Automatic approval is disabled when:
 - the diff is incomplete or exceeds `MAX_DIFF_CHARS`; or
 - the PR originates from a fork.
 
-The script does not merge pull requests.
+When `auto_merge` is enabled, an approving review requests GitHub auto-merge.
+GitHub performs the merge after required checks and reviews pass. Non-approving
+outcomes fail the review job so branch protection can use it as a gate. The
+checked-in workflow keeps auto-merge disabled until the repository is configured.
 
 ## Validate
 

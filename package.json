@@ -6,7 +6,13 @@
   "scripts": {
     "review": "node scripts/review-pr.mjs",
     "test:gemini": "node scripts/smoke-gemini.mjs",
-    "test": "node --test"
+    "test": "node --test test/*.test.mjs",
+    "ci:lint": "node scripts/ci-lint.mjs",
+    "ci:sanity": "node --test test/risk.test.mjs",
+    "ci:smoke": "node --test test/review-flow.test.mjs",
+    "ci:secrets": "bash scripts/ci-secrets.sh",
+    "ci:sca": "trivy fs --scanners vuln --exit-code 1 .",
+    "ci:sast": "opengrep --config auto --error ."
   },
   "dependencies": {},
   "devDependencies": {},

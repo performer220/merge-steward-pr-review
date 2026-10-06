@@ -3,7 +3,8 @@
 A dependency-free GitHub Action that reviews pull requests with the Gemini
 Developer API. It reads the PR diff and CI results, scores six risk dimensions,
 approves only deterministic low-risk changes, and optionally sends medium/high
-risk changes to Slack. It never merges or executes pull-request code.
+risk changes to Slack. It can request GitHub auto-merge for approved PRs; it
+never executes pull-request code.
 
 ## Risk policy
 
@@ -46,7 +47,7 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 permissions:
-  contents: read
+  contents: write # Needed only when auto_merge is true; otherwise use read.
   checks: read
   pull-requests: write
 jobs:
@@ -61,6 +62,7 @@ jobs:
       - uses: performer220/merge-steward-pr-review@v1
         with:
           pr_number: ${{ github.event.pull_request.number }}
+          auto_merge: "true"
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -68,8 +70,28 @@ jobs:
 
 Pin the action to a full commit SHA when using it in a sensitive repository.
 
+### Automatic merging
+
+Auto-merge is opt-in. First enable **Allow auto-merge** in the target repository,
+and protect the base branch by requiring the Merge Steward `review` check and
+your normal CI checks. Set `auto_merge: "true"` in the caller workflow and grant
+`contents: write`. The default merge method is `squash`; `merge` and `rebase`
+are also supported through the `merge_method` input. Keep `contents: read` when
+auto-merge is disabled.
+
+Only an actual approving review enables auto-merge. A failed CI check, review
+timeout, medium/high risk assessment, blocking finding, truncated diff, forked
+PR, or unavailable GitHub Actions approval leaves the review check failing. A
+changed PR revision also stops the request. GitHub then merges only when all
+branch requirements pass. Do not turn on auto-merge for the action's own PR
+until you are ready for unattended merges in that repository.
+
 For local use, export the variables shown in `.env.example`, then run
 `node scripts/review-pr.mjs`. No package installation is required.
+
+`npm test` runs the risk-policy tests and a mocked end-to-end review. The CI
+recipes in `package.json` cover syntax, sanity, the review smoke path, full
+Git-history secret scanning, dependency scanning, and static analysis.
 
 To verify the API key before reviewing a PR, open **Actions → Test Gemini API →
 Run workflow**. A successful run prints `Gemini API connection succeeded`
