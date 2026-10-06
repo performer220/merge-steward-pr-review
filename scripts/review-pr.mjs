@@ -102,12 +102,12 @@ function positiveInteger(value, fallback) {
   return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
-async function github(path, { method = "GET", body, accept = "application/vnd.github+json", raw = false } = {}) {
+async function github(path, { method = "GET", body, accept = "application/vnd.github+json", raw = false, token = githubToken } = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     method,
     headers: {
       accept,
-      authorization: `Bearer ${githubToken}`,
+      authorization: `Bearer ${token}`,
       "content-type": "application/json",
       "user-agent": "merge-steward",
       "x-github-api-version": "2022-11-28",
@@ -332,6 +332,7 @@ async function enableAutoMerge(pullRequestId, method) {
   if (!Object.hasOwn(methods, method)) throw new Error(`Unsupported merge method: ${method}`);
   const response = await github("/graphql", {
     method: "POST",
+    token: env.AUTO_MERGE_TOKEN || githubToken,
     body: {
       query: "mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) { enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: $mergeMethod }) { pullRequest { number } } }",
       variables: { pullRequestId, mergeMethod: methods[method] },

@@ -79,6 +79,13 @@ your normal CI checks. Set `auto_merge: "true"` in the caller workflow and grant
 are also supported through the `merge_method` input. Keep `contents: read` when
 auto-merge is disabled.
 
+GitHub may suppress workflows triggered by the resulting push when auto-merge
+was requested with the workflow's `GITHUB_TOKEN`. Require PR checks before
+merging. Repositories that rely on post-merge push workflows should use a
+separate GitHub App installation token for the merge request.
+The action accepts a job-minted token in `AUTO_MERGE_TOKEN`; it uses that token
+only to enable auto-merge and continues to use `GITHUB_TOKEN` for the review.
+
 Only an actual approving review enables auto-merge. A failed CI check, review
 timeout, medium/high risk assessment, blocking finding, truncated diff, forked
 PR, or unavailable GitHub Actions approval leaves the review check failing. A

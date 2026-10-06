@@ -41,6 +41,10 @@ globalThis.fetch = async (url, options = {}) => {
     return json({ id: 1 });
   }
   if (address.endsWith("/graphql")) {
+    if (scenario === "alternate-token") {
+      if (options.headers.authorization !== "Bearer merge-fixture") throw new Error("Auto-merge token was not used.");
+      console.log("MOCK_MERGE_TOKEN=separate");
+    }
     console.log("MOCK_AUTO_MERGE=enabled");
     return json({ data: { enablePullRequestAutoMerge: { pullRequest: { number: 7 } } } });
   }

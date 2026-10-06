@@ -11,7 +11,7 @@ on:
         type: number
 
 permissions:
-  contents: read
+  contents: write
   checks: read
   pull-requests: write
 
@@ -37,8 +37,7 @@ jobs:
           pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
           model: gemini-3.6-flash
           wait_for_checks_seconds: "600"
-          # Enable after repository auto-merge and branch protection are configured.
-          auto_merge: "false"
+          auto_merge: "true"
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

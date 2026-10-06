@@ -73,7 +73,12 @@ Automatic approval is disabled when:
 When `auto_merge` is enabled, an approving review requests GitHub auto-merge.
 GitHub performs the merge after required checks and reviews pass. Non-approving
 outcomes fail the review job so branch protection can use it as a gate. The
-checked-in workflow keeps auto-merge disabled until the repository is configured.
+checked-in workflow requests auto-merge for approved PRs. Because it uses the
+built-in `GITHUB_TOKEN`, workflows triggered only by the resulting push may not
+run. The required PR checks run before merging; repositories that depend on
+post-merge push workflows should use a separate GitHub App installation token
+for the auto-merge request.
+Pass a job-minted installation token as `AUTO_MERGE_TOKEN` to use this path.
 
 ## Validate
 
