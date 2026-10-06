@@ -27,8 +27,8 @@ jobs:
     steps:
       # pull_request_target checks out the trusted base branch. Never check out or
       # execute code from the pull request in this privileged workflow.
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
       - name: Review pull request
@@ -37,6 +37,8 @@ jobs:
           pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
           model: gemini-3.6-flash
           wait_for_checks_seconds: "600"
+          # Enable after repository auto-merge and branch protection are configured.
+          auto_merge: "false"
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

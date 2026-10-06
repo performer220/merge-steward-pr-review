@@ -26,7 +26,7 @@ if (checks.failed.length > 0) {
     "Review stopped because these checks did not pass:",
     ...checks.failed.map((check) => `- **${check.name}**: ${check.conclusion}`),
   ].join("\n"));
-  process.exit(0);
+  process.exit(1);
 }
 if (checks.pending.length > 0) {
   await submitReview("COMMENT", [
@@ -35,7 +35,7 @@ if (checks.pending.length > 0) {
     `Review timed out while waiting for: ${checks.pending.map((check) => check.name).join(", ")}.`,
     "Re-run Merge Steward after those checks finish.",
   ].join("\n"));
-  process.exit(0);
+  process.exit(1);
 }
 
 const [files, diff] = await Promise.all([
@@ -73,10 +73,23 @@ const comesFromFork = pr.head.repo.full_name !== pr.base.repo.full_name;
 const autoApprove = risk.autoApprove && !hasBlockingFinding && !diffTruncated && !comesFromFork;
 const body = formatReview({ assessment, risk, checks, autoApprove, diffTruncated, comesFromFork, model });
 
-await submitReview(autoApprove ? "APPROVE" : "COMMENT", body);
+const currentPr = await github(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
+if (currentPr.head.sha !== pr.head.sha || currentPr.base.sha !== pr.base.sha || currentPr.draft) {
+  throw new Error("The pull request changed during review; re-run Merge Steward for the latest revision.");
+}
+
+const approved = await submitReview(autoApprove ? "APPROVE" : "COMMENT", body);
+if (approved && env.AUTO_MERGE === "true") {
+  const latestPr = await github(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
+  if (latestPr.head.sha !== pr.head.sha || latestPr.base.sha !== pr.base.sha || latestPr.draft) {
+    throw new Error("The pull request changed after approval; auto-merge was not enabled.");
+  }
+  await enableAutoMerge(latestPr.node_id, env.MERGE_METHOD || "squash");
+}
 if (!autoApprove && (risk.band === "medium" || risk.band === "high")) {
   await postSlack({ pr, risk, summary: assessment.summary });
 }
+if (!approved) process.exitCode = 1;
 
 function required(name) {
   const value = env[name];
@@ -298,6 +311,7 @@ async function submitReview(event, body) {
       method: "POST",
       body: { event, body },
     });
+    return event === "APPROVE";
   } catch (error) {
     // GitHub does not allow the built-in github-actions identity to approve
     // pull requests. Preserve the review findings as a comment instead.
@@ -309,7 +323,24 @@ async function submitReview(event, body) {
         body: `${body}\n\n> Automatic approval was unavailable because GitHub Actions cannot submit approving reviews.`,
       },
     });
+    return false;
   }
+}
+
+async function enableAutoMerge(pullRequestId, method) {
+  const methods = { squash: "SQUASH", merge: "MERGE", rebase: "REBASE" };
+  if (!Object.hasOwn(methods, method)) throw new Error(`Unsupported merge method: ${method}`);
+  const response = await github("/graphql", {
+    method: "POST",
+    body: {
+      query: "mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) { enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: $mergeMethod }) { pullRequest { number } } }",
+      variables: { pullRequestId, mergeMethod: methods[method] },
+    },
+  });
+  if (response.errors?.length) {
+    throw new Error(`Could not enable auto-merge: ${response.errors.map((error) => error.message).join("; ")}`);
+  }
+  console.log(`Enabled ${method} auto-merge for PR #${pullNumber}.`);
 }
 
 async function postSlack({ pr, risk, summary }) {
